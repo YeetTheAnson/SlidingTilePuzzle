@@ -3,128 +3,116 @@ import pygame_gui
 import random
 
 pygame.init()
+WINDOW_SIZE = (800, 600)
+screen = pygame.display.set_mode(WINDOW_SIZE)
+pygame.display.set_caption("Sliding Tile Puzzle")
+manager = pygame_gui.UIManager(WINDOW_SIZE, 'theme.json')
 
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
-BACKGROUND_COLOR = (255, 255, 255)  
-TILE_COLOR = (100, 100, 250)  
-EMPTY_COLOR = BACKGROUND_COLOR 
+BACKGROUND_COLOR = (240, 240, 240)
+ACCENT_COLOR = (0, 120, 212)
+TILE_COLOR = (255, 255, 255)
 
-window_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption('Sliding Tile Puzzle')
-manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
-header_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 50)
-header_surface = pygame.Surface(header_rect.size)
-header_surface.fill((240, 240, 240))  
-
-puzzle_box_size = 400
-puzzle_box_rect = pygame.Rect((WINDOW_WIDTH - puzzle_box_size) // 2,
-                              (WINDOW_HEIGHT - puzzle_box_size) // 2 + 50,
-                              puzzle_box_size,
-                              puzzle_box_size)
-
-difficulty = 3
-tile_size = puzzle_box_size // difficulty
-tiles = []
-empty_tile_pos = (difficulty - 1, difficulty - 1)
-
-
-button_size = (200, 50)
-button_padding = 20
-buttons_start_x = (WINDOW_WIDTH - 3 * button_size[0] - 2 * button_padding) // 2
-button_y = header_rect.height + button_padding
-
-choose_image_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(buttons_start_x, button_y, *button_size),
-    text='Choose Image',
+header = pygame_gui.elements.UILabel(
+    relative_rect=pygame.Rect((0, 0), (800, 50)),
+    text="Score: 0",
     manager=manager
 )
 
-difficulty_options = ['3x3', '4x4', '5x5', '6x6', '7x7', '8x8']
+choose_image_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect((50, 60), (200, 40)),
+    text="Choose Image",
+    manager=manager
+)
+
 difficulty_dropdown = pygame_gui.elements.UIDropDownMenu(
-    options_list=difficulty_options,
+    options_list=['3x3', '4x4', '5x5', '6x6', '7x7', '8x8'],
     starting_option='3x3',
-    relative_rect=pygame.Rect(buttons_start_x + button_size[0] + button_padding, button_y, *button_size),
+    relative_rect=pygame.Rect((300, 60), (200, 40)),
     manager=manager
 )
 
 animations_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(buttons_start_x + 2 * (button_size[0] + button_padding), button_y, *button_size),
-    text='Animations',
+    relative_rect=pygame.Rect((550, 60), (200, 40)),
+    text="Animations",
     manager=manager
 )
 
-clock = pygame.time.Clock()
+grid_size = 3
+tile_size = 100
+grid_margin = 5
+grid_origin = ((WINDOW_SIZE[0] - (grid_size * (tile_size + grid_margin))) // 2,
+               ((WINDOW_SIZE[1] - 100) - (grid_size * (tile_size + grid_margin))) // 2 + 100)
 
-def create_grid():
-    global tiles, empty_tile_pos
-    tiles = [(i * difficulty + j + 1) for i in range(difficulty) for j in range(difficulty)]
-    tiles[-1] = 0 
-    empty_tile_pos = (difficulty - 1, difficulty - 1)
-    random.shuffle(tiles)
+tiles = []
+for i in range(grid_size * grid_size):
+    tiles.append(i)
 
 def draw_grid():
-    for i in range(difficulty):
-        for j in range(difficulty):
-            tile_value = tiles[i * difficulty + j]
-            tile_rect = pygame.Rect(puzzle_box_rect.left + j * tile_size,
-                                    puzzle_box_rect.top + i * tile_size,
-                                    tile_size, tile_size)
-            if tile_value:
-                pygame.draw.rect(window_surface, TILE_COLOR, tile_rect)
-                font = pygame.font.Font(None, 50)
-                text_surf = font.render(str(tile_value), True, (255, 255, 255))
-                text_rect = text_surf.get_rect(center=tile_rect.center)
-                window_surface.blit(text_surf, text_rect)
-            else:
-                pygame.draw.rect(window_surface, EMPTY_COLOR, tile_rect)
+    for i in range(grid_size):
+        for j in range(grid_size):
+            if tiles[i * grid_size + j] != grid_size * grid_size - 1:
+                pygame.draw.rect(screen, TILE_COLOR, (
+                    grid_origin[0] + j * (tile_size + grid_margin),
+                    grid_origin[1] + i * (tile_size + grid_margin),
+                    tile_size, tile_size
+                ))
+                font = pygame.font.Font(None, 36)
+                text = font.render(str(tiles[i * grid_size + j] + 1), True, (0, 0, 0))
+                text_rect = text.get_rect(center=(
+                    grid_origin[0] + j * (tile_size + grid_margin) + tile_size // 2,
+                    grid_origin[1] + i * (tile_size + grid_margin) + tile_size // 2
+                ))
+                screen.blit(text, text_rect)
 
-def is_solvable(tile_list):
-    inversions = 0
-    for i in range(len(tile_list)):
-        for j in range(i + 1, len(tile_list)):
-            if tile_list[i] and tile_list[j] and tile_list[i] > tile_list[j]:
-                inversions += 1
-    return inversions % 2 == 0
+def handle_tile_click(pos):
+    x, y = pos
+    grid_x = (x - grid_origin[0]) // (tile_size + grid_margin)
+    grid_y = (y - grid_origin[1]) // (tile_size + grid_margin)
+    
+    if 0 <= grid_x < grid_size and 0 <= grid_y < grid_size:
+        index = grid_y * grid_size + grid_x
+        empty_index = tiles.index(grid_size * grid_size - 1)
+        
+        if index - 1 == empty_index and index % grid_size != 0:  
+            tiles[index], tiles[empty_index] = tiles[empty_index], tiles[index]
+        elif index + 1 == empty_index and (index + 1) % grid_size != 0:  
+            tiles[index], tiles[empty_index] = tiles[empty_index], tiles[index]
+        elif index - grid_size == empty_index:  
+            tiles[index], tiles[empty_index] = tiles[empty_index], tiles[index]
+        elif index + grid_size == empty_index:  
+            tiles[index], tiles[empty_index] = tiles[empty_index], tiles[index]
 
-
-def get_tile_position(mouse_pos):
-    x, y = mouse_pos
-    if puzzle_box_rect.collidepoint(mouse_pos):
-        grid_x = (x - puzzle_box_rect.left) // tile_size
-        grid_y = (y - puzzle_box_rect.top) // tile_size
-        return grid_y, grid_x
-    return None
-
-def move_tile(tile_pos):
-    global empty_tile_pos
-    x, y = tile_pos
-    ex, ey = empty_tile_pos
-    if (x == ex and abs(y - ey) == 1) or (y == ey and abs(x - ex) == 1):
-        tiles[ex * difficulty + ey], tiles[x * difficulty + y] = tiles[x * difficulty + y], tiles[ex * difficulty + ey]
-        empty_tile_pos = (x, y)
-
-create_grid()
-
+clock = pygame.time.Clock()
 is_running = True
+
 while is_running:
     time_delta = clock.tick(60) / 1000.0
-
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             is_running = False
-
+        
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                handle_tile_click(event.pos)
+        
         if event.type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
             if event.ui_element == difficulty_dropdown:
-                difficulty = int(event.text[0])
-                tile_size = puzzle_box_size // difficulty
-                create_grid()
-
+                grid_size = int(event.text.split('x')[0])
+                tile_size = 500 // grid_size
+                grid_origin = ((WINDOW_SIZE[0] - (grid_size * (tile_size + grid_margin))) // 2,
+                               ((WINDOW_SIZE[1] - 100) - (grid_size * (tile_size + grid_margin))) // 2 + 100)
+                tiles = list(range(grid_size * grid_size))
+                random.shuffle(tiles)
+        
         manager.process_events(event)
+    
     manager.update(time_delta)
-    window_surface.fill(BACKGROUND_COLOR)
-    window_surface.blit(header_surface, header_rect.topleft)
+    
+    screen.fill(BACKGROUND_COLOR)
+    manager.draw_ui(screen)
     draw_grid()
-    manager.draw_ui(window_surface)
+    
     pygame.display.update()
+
 pygame.quit()
