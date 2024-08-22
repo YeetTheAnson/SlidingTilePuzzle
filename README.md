@@ -26,6 +26,7 @@ Enables and disables animation
 
 ### 5. **Image selection**
 Players can choose to upload their own image
+NOTE: IMAGE UPLOAD ONLY WORKS WITH 1:1 RATIO IMAGE
 
 ## How to play
 
