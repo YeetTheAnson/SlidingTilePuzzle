@@ -8,7 +8,7 @@ https://github.com/user-attachments/assets/d4db000d-fecb-417f-884b-52f5fa2387ed
 
 ## Overview
 
-**ProMicroMacropad** a fun puzzle game inspired by 15 puzzle. It has 6 difficulty modes ranging from 3x3 to 8x8. It has 3 gamemodes which are classic, snake and spiral.
+**SlidingTilePuzzle** a fun puzzle game inspired by 15 puzzle. It has 6 difficulty modes ranging from 3x3 to 8x8. It has 3 gamemodes which are classic, snake and spiral.
 
 ## Features
 
