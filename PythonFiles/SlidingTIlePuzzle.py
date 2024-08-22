@@ -7,7 +7,7 @@ from PIL import Image
 
 pygame.init()
 
-WINDOW_SIZE = (800, 600)
+WINDOW_SIZE = (1000, 600) 
 screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption("Sliding Tile Puzzle")
 
@@ -18,7 +18,7 @@ ACCENT_COLOR = (0, 120, 212)
 TILE_COLOR = (255, 255, 255)
 
 header = pygame_gui.elements.UILabel(
-    relative_rect=pygame.Rect((0, 0), (800, 50)),
+    relative_rect=pygame.Rect((0, 0), (1000, 50)),
     text="Moves: 0 | Score: 0 | Time: 00:00",
     manager=manager
 )
@@ -42,14 +42,21 @@ difficulty_dropdown = pygame_gui.elements.UIDropDownMenu(
     manager=manager
 )
 
-shuffle_button = pygame_gui.elements.UIButton(
+gamemode_dropdown = pygame_gui.elements.UIDropDownMenu(
+    options_list=['Classic', 'Snake', 'Spiral'],
+    starting_option='Classic',
     relative_rect=pygame.Rect((500, 60), (140, 40)),
+    manager=manager
+)
+
+shuffle_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect((650, 60), (140, 40)),
     text="Shuffle",
     manager=manager
 )
 
 animations_toggle = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect((650, 60), (140, 40)),
+    relative_rect=pygame.Rect((800, 60), (140, 40)),
     text="Animations: Off",
     manager=manager
 )
@@ -58,24 +65,53 @@ grid_size = 3
 grid_area = 400
 tile_size = grid_area // grid_size
 grid_margin = 2
-grid_origin = ((WINDOW_SIZE[0] - grid_area) // 2,
-               ((WINDOW_SIZE[1] - 100) - grid_area) // 2 + 100)
+grid_origin = ((WINDOW_SIZE[0] - grid_area) // 2, ((WINDOW_SIZE[1] - 100) - grid_area) // 2 + 100)
 
 tiles = list(range(grid_size * grid_size))
 
 animation_speed = 5
 animating_tiles = []
 use_animations = False
+
 custom_image = None
 tile_images = []
+
 moves = 0
 start_time = None
 score = 0
 game_started = False
+game_mode = 'Classic'
 
-def shuffle_tiles():
+# THIS SECTION IS WRITTEN WITH ASSIST FROM CHATGPT (The calculation part only)
+def generate_tile_order():
+    if game_mode == 'Classic':
+        return list(range(grid_size * grid_size))
+    elif game_mode == 'Snake':
+        order = []
+        for i in range(grid_size):
+            row = range(i * grid_size, (i + 1) * grid_size)
+            order.extend(row if i % 2 == 0 else reversed(row))
+        return order
+    elif game_mode == 'Spiral':
+        order = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
+        dx, dy = [0, 1, 0, -1], [1, 0, -1, 0]
+        x, y, di = 0, 0, 0
+        for i in range(grid_size * grid_size):
+            order[x][y] = i
+            nx, ny = x + dx[di], y + dy[di]
+            if 0 <= nx < grid_size and 0 <= ny < grid_size and order[nx][ny] == 0:
+                x, y = nx, ny
+            else:
+                di = (di + 1) % 4
+                x, y = x + dx[di], y + dy[di]
+        return [item for sublist in order for item in sublist]
+    
+#END OF SECTION
+
+def shuffle_tiles():  #Spams 1000 possible moves to shuffle to ensure it is possible to solve
     global tiles, game_started
-    empty_index = tiles.index(grid_size * grid_size - 1)
+    tile_order = generate_tile_order()
+    empty_index = tile_order.index(grid_size * grid_size - 1)
     for _ in range(1000):
         possible_moves = []
         if empty_index % grid_size != 0:
@@ -87,14 +123,15 @@ def shuffle_tiles():
         if empty_index < grid_size * (grid_size - 1):
             possible_moves.append(empty_index + grid_size)
         move = random.choice(possible_moves)
-        tiles[empty_index], tiles[move] = tiles[move], tiles[empty_index]
+        tile_order[empty_index], tile_order[move] = tile_order[move], tile_order[empty_index]
         empty_index = move
+    tiles = [tile_order.index(i) for i in range(grid_size * grid_size)]
     game_started = False
 
 def is_solved():
-    return tiles == list(range(grid_size * grid_size))
+    return tiles == generate_tile_order()
 
-def draw_grid():
+def draw_grid(): #use pygame to make the grid
     for i in range(grid_size):
         for j in range(grid_size):
             if tiles[i * grid_size + j] != grid_size * grid_size - 1:
@@ -112,7 +149,7 @@ def draw_grid():
                     text_rect = text.get_rect(center=tile_rect.center)
                     screen.blit(text, text_rect)
 
-def handle_tile_click(pos):
+def handle_tile_click(pos): #detects whether the player has clicked on the tile, and will begin counting the time. Also handles the possible place for the tiles to slide.
     global tiles, moves, start_time, game_started
     x, y = pos
     grid_x = (x - grid_origin[0]) // (tile_size + grid_margin)
@@ -154,6 +191,7 @@ def swap_tiles(index1, index2):
     else:
         tiles[index1], tiles[index2] = tiles[index2], tiles[index1]
 
+
 def update_animations():
     global tiles, animating_tiles
     if animating_tiles:
@@ -164,6 +202,7 @@ def update_animations():
             animating_tiles = []
         else:
             animating_tiles[0] = (index1, index2, progress)
+
 
 def draw_animations():
     if animating_tiles:
@@ -184,6 +223,7 @@ def draw_animations():
             tile_size, tile_size
         ))
         
+        #THIS SECTION IS GENERATED BY CHATGPT (because it's faster than reading documentations ;p)
         tile_rect = pygame.Rect(
             grid_origin[0] + x1 * (tile_size + grid_margin) + direction[0] * progress,
             grid_origin[1] + y1 * (tile_size + grid_margin) + direction[1] * progress,
@@ -197,6 +237,7 @@ def draw_animations():
             text = font.render(str(tiles[index1] + 1), True, (0, 0, 0))
             text_rect = text.get_rect(center=tile_rect.center)
             screen.blit(text, text_rect)
+        #END OF SECTION
 
 def load_custom_image():
     global custom_image, tile_images
@@ -244,7 +285,7 @@ def calculate_score():
     else:
         score = 0
 
-def reset_game():
+def reset_game(): #game resets during gamemode change, and on shuffle button press
     global tiles, moves, start_time, score, game_started
     tiles = list(range(grid_size * grid_size))
     shuffle_tiles()
@@ -276,6 +317,9 @@ while is_running:
                 reset_game()
                 if custom_image:
                     process_image()
+            elif event.ui_element == gamemode_dropdown:
+                game_mode = event.text
+                reset_game()
         
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == animations_toggle:
@@ -303,6 +347,7 @@ while is_running:
     
     manager.draw_ui(screen)
     
+    # Updates the number of moves, time and score value in the header
     if game_started and start_time is not None:
         elapsed_time = int(time.time() - start_time)
     else:
